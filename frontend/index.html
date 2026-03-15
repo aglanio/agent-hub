@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🤖 Agent Hub</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#07070f;--bg2:#0e0e1c;--bg3:#141428;--bg4:#1a1a30;
+  --border:#ffffff12;--border2:#ffffff20;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#475569;
+  --blue:#3b82f6;--purple:#8b5cf6;--amber:#f59e0b;
+  --green:#22c55e;--red:#ef4444;--pink:#ec4899;
+  --glow:0 0 20px rgba(139,92,246,.25);
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+/* TOPBAR */
+.topbar{height:52px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;flex-shrink:0;z-index:100}
+.topbar-logo{font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.topbar-logo span{background:linear-gradient(135deg,var(--purple),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.topbar-sep{flex:1}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.topbar-btn{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:6px 14px;border-radius:8px;cursor:pointer;font-size:.8rem;transition:.2s}
+.topbar-btn:hover{border-color:var(--purple);color:var(--text)}
+
+/* LAYOUT */
+.layout{flex:1;display:flex;overflow:hidden}
+.canvas-section{flex:1;position:relative;overflow:hidden;background:var(--bg)}
+.canvas-dots{position:absolute;inset:0;background-image:radial-gradient(circle,#ffffff08 1px,transparent 1px);background-size:28px 28px;pointer-events:none}
+
+/* CANVAS */
+.canvas-wrap{position:absolute;inset:0;overflow:auto}
+.canvas-inner{position:relative;width:1400px;height:1050px;margin:40px}
+
+/* SVG EDGES */
+.edges-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.edge-path{fill:none;stroke-width:2;stroke-dasharray:8 5;animation:dashFlow 2s linear infinite;opacity:.7}
+.edge-label{font-size:10px;fill:#ffffff50;font-family:'Segoe UI',sans-serif}
+@keyframes dashFlow{from{stroke-dashoffset:26}to{stroke-dashoffset:0}}
+
+/* NODES */
+.node{position:absolute;width:200px;border-radius:12px;border:1px solid var(--border2);background:var(--bg3);cursor:pointer;transition:.25s;user-select:none}
+.node:hover{transform:translateY(-3px);box-shadow:var(--glow);border-color:var(--border2)}
+.node.selected{border-color:var(--purple)!important;box-shadow:0 0 0 2px rgba(139,92,246,.4),var(--glow)}
+.node.virtual{opacity:.75;border-style:dashed}
+.node-header{padding:10px 14px;border-radius:11px 11px 0 0;display:flex;align-items:center;gap:8px}
+.node-icon{font-size:1.2rem;line-height:1}
+.node-name{font-size:.82rem;font-weight:600;color:#fff}
+.node-body{padding:10px 14px;display:flex;flex-direction:column;gap:6px}
+.node-desc{font-size:.72rem;color:var(--text2);line-height:1.4}
+.node-meta{display:flex;align-items:center;gap:5px;font-size:.7rem;color:var(--text3)}
+.node-badge{background:var(--bg4);border:1px solid var(--border);border-radius:5px;padding:2px 7px;font-size:.68rem;color:var(--text2)}
+.node-badge.ok{color:var(--green);border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.08)}
+.node-badge.warn{color:var(--amber);border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.08)}
+.node-port-out{position:absolute;right:-7px;top:50%;transform:translateY(-50%);width:14px;height:14px;border-radius:50%;border:2px solid var(--border2);background:var(--bg);transition:.2s}
+.node:hover .node-port-out,.node.selected .node-port-out{border-color:var(--purple);background:var(--purple)}
+.canvas-divider{position:absolute;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,var(--border2),var(--purple)44,var(--border2),transparent)}
+.canvas-divider-label{position:absolute;left:50%;transform:translateX(-50%);top:-12px;background:var(--bg);padding:0 16px;font-size:.72rem;color:var(--purple);letter-spacing:.08em;text-transform:uppercase;font-weight:600;white-space:nowrap}
+.node-stack{font-size:.65rem;color:var(--text3);background:var(--bg4);border:1px solid var(--border);border-radius:4px;padding:1px 6px;display:inline-block;margin-top:2px}
+.node-cat{position:absolute;top:-18px;left:14px;font-size:.6rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- SIDE PANEL -->
+<style>
+.side-panel{width:0;min-width:0;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;transition:.3s;overflow:hidden}
+.side-panel.open{width:420px;min-width:420px}
+.panel-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.panel-agent-icon{font-size:1.5rem;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:10px}
+.panel-title{font-size:.95rem;font-weight:600}
+.panel-close{margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:1.1rem;padding:4px;border-radius:6px;transition:.2s}
+.panel-close:hover{color:var(--text);background:var(--bg4)}
+.panel-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.ptab{flex:1;padding:9px;font-size:.78rem;background:none;border:none;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:.2s}
+.ptab.active{color:var(--purple);border-bottom-color:var(--purple)}
+.ptab:hover{color:var(--text)}
+.panel-content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.tab-pane{flex:1;overflow-y:auto;display:none;flex-direction:column;padding:16px;gap:12px}
+.tab-pane.active{display:flex}
+
+/* CHAT */
+.chat-messages{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;min-height:0;padding-bottom:8px}
+.msg{max-width:85%;padding:9px 13px;border-radius:12px;font-size:.82rem;line-height:1.5;word-break:break-word;white-space:pre-wrap}
+.msg.user{align-self:flex-end;background:linear-gradient(135deg,var(--purple),var(--blue));color:#fff;border-radius:12px 12px 2px 12px}
+.msg.assistant{align-self:flex-start;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:12px 12px 12px 2px}
+.msg.system{align-self:center;font-size:.72rem;color:var(--text3);font-style:italic;background:none}
+.chat-input-wrap{border-top:1px solid var(--border);padding:10px;display:flex;gap:8px;flex-shrink:0}
+.chat-input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:8px 12px;color:var(--text);font-size:.83rem;resize:none;max-height:100px;min-height:38px;font-family:inherit}
+.chat-input:focus{outline:none;border-color:var(--purple)}
+.send-btn{background:var(--purple);border:none;color:#fff;width:38px;height:38px;border-radius:10px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0}
+.send-btn:hover{background:#7c3aed}
+.send-btn:disabled{opacity:.4;cursor:default}
+
+/* REPORT */
+.report-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px}
+.report-title{font-size:.78rem;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em}
+.report-value{font-size:.85rem;color:var(--text);line-height:1.5}
+.report-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.report-list li::before{content:"▸ ";color:var(--purple);font-size:.7rem}
+.report-list li{font-size:.8rem;color:var(--text2);line-height:1.4}
+.report-empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:.85rem}
+.badge-ok{color:var(--green)}.badge-warn{color:var(--amber)}.badge-err{color:var(--red)}
+
+/* SKILL */
+.skill-pre{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:.75rem;color:var(--text2);line-height:1.6;white-space:pre-wrap;word-break:break-word;overflow-y:auto;flex:1}
+</style>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-logo">🤖 <span>Agent Hub</span></div>
+  <div style="font-size:.75rem;color:var(--text3)">Agentes Pessoais de IA</div>
+  <div class="topbar-sep"></div>
+  <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--text2)">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Carregando...</span>
+  </div>
+  <button class="topbar-btn" onclick="loadFlow()">↺ Atualizar</button>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+  <div class="canvas-section">
+    <div class="canvas-dots"></div>
+    <div class="canvas-wrap">
+      <div class="canvas-inner" id="canvasInner">
+        <svg class="edges-svg" id="edgesSvg"></svg>
+        <div id="nodesLayer"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDE PANEL -->
+  <div class="side-panel" id="sidePanel">
+    <div class="panel-head">
+      <div class="panel-agent-icon" id="panelIcon" style="background:#1a1a30">🤖</div>
+      <div>
+        <div class="panel-title" id="panelTitle">Agente</div>
+        <div style="font-size:.72rem;color:var(--text3)" id="panelSub"></div>
+      </div>
+      <button class="panel-close" onclick="closePanel()">✕</button>
+    </div>
+    <div class="panel-tabs">
+      <button class="ptab active" onclick="switchTab('chat',this)">💬 Chat</button>
+      <button class="ptab" onclick="switchTab('report',this)">📊 Relatório</button>
+      <button class="ptab" onclick="switchTab('skill',this)">⚙️ Skill</button>
+    </div>
+    <div class="panel-content">
+      <div class="tab-pane active" id="tabChat">
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-wrap">
+          <textarea class="chat-input" id="chatInput" placeholder="Pergunte ao agente..." rows="1"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
+          <button class="send-btn" id="sendBtn" onclick="sendChat()">➤</button>
+        </div>
+      </div>
+      <div class="tab-pane" id="tabReport"></div>
+      <div class="tab-pane" id="tabSkill">
+        <pre class="skill-pre" id="skillPre">Carregando...</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let agents = [], connections = [], currentAgent = null;
+
+// ── LOAD FLOW ──────────────────────────────────────────────
+async function loadFlow(){
+  try{
+    const r = await fetch(API+'/api/agents');
+    const d = await r.json();
+    agents = d.agents||[];
+    connections = d.connections||[];
+    renderNodes();
+    setTimeout(drawEdges, 80);
+    const real = agents.filter(a=>!a.virtual).length;
+    document.getElementById('statusText').textContent = `${real} agente${real!==1?'s':''} ativos`;
+    document.getElementById('statusDot').style.background = real>0?'var(--green)':'var(--red)';
+  }catch(e){
+    document.getElementById('statusText').textContent = 'Erro ao conectar';
+    document.getElementById('statusDot').style.background = 'var(--red)';
+  }
+}
+
+// ── RENDER NODES ───────────────────────────────────────────
+function renderNodes(){
+  const layer = document.getElementById('nodesLayer');
+  layer.textContent = '';
+  // Divider between agents and projects
+  const hasExtras = agents.some(a=>a.category);
+  if(hasExtras){
+    const divider = document.createElement('div');
+    divider.className='canvas-divider';
+    divider.style.top='575px';
+    const lbl = document.createElement('div');
+    lbl.className='canvas-divider-label';
+    lbl.textContent='Projetos & Ferramentas';
+    divider.appendChild(lbl);
+    layer.appendChild(divider);
+  }
+  agents.forEach(a=>{
+    const div = document.createElement('div');
+    div.className = 'node'+(a.virtual?' virtual':'');
+    div.id = 'node-'+a.id;
+    div.style.left = a.x+'px';
+    div.style.top  = a.y+'px';
+    div.onclick = ()=> (a.virtual !== true) && openAgent(a);
+    // Build node using DOM methods
+    if(a.category){
+      const cat = document.createElement('div');
+      cat.className='node-cat';
+      cat.style.color=a.color;
+      cat.textContent = a.category==='juridico'?'Juridico':a.category==='financas'?'Financas':a.category==='ai'?'IA':a.category==='analytics'?'Analytics':a.category;
+      div.appendChild(cat);
+    }
+    const header = document.createElement('div');
+    header.className='node-header';
+    header.style.background=a.color+'22';
+    header.style.borderBottom='1px solid '+a.color+'33';
+    const icon = document.createElement('span');
+    icon.className='node-icon'; icon.textContent=a.icon;
+    const name = document.createElement('span');
+    name.className='node-name'; name.textContent=a.name;
+    header.appendChild(icon); header.appendChild(name);
+    div.appendChild(header);
+    const body = document.createElement('div');
+    body.className='node-body';
+    if(a.virtual){
+      const vd = document.createElement('div');
+      vd.className='node-desc'; vd.style.color=a.color; vd.textContent=a.name;
+      body.appendChild(vd);
+    } else {
+      const desc = document.createElement('div');
+      desc.className='node-desc'; desc.textContent=a.description||'';
+      body.appendChild(desc);
+      if(a.stack){
+        const st = document.createElement('span');
+        st.className='node-stack'; st.textContent=a.stack;
+        body.appendChild(st);
+      }
+      const badges = document.createElement('div');
+      badges.style.cssText='display:flex;flex-wrap:wrap;gap:4px';
+      if(a.schedule){
+        const sb = document.createElement('span');
+        sb.className='node-badge'; sb.textContent=a.schedule;
+        badges.appendChild(sb);
+      }
+      if(a.has_report){
+        const rb = document.createElement('span');
+        rb.className='node-badge ok'; rb.textContent='✓ '+(a.report_date||'relatório');
+        badges.appendChild(rb);
+      } else {
+        const rb = document.createElement('span');
+        rb.className='node-badge warn'; rb.textContent='sem relatório';
+        badges.appendChild(rb);
+      }
+      body.appendChild(badges);
+    }
+    div.appendChild(body);
+    const port = document.createElement('div');
+    port.className='node-port-out';
+    port.style.borderColor=a.color+'66';
+    div.appendChild(port);
+    layer.appendChild(div);
+  });
+}
+
+// ── DRAW EDGES ─────────────────────────────────────────────
+function drawEdges(){
+  const svg = document.getElementById('edgesSvg');
+  const canvas = document.getElementById('canvasInner');
+  const cr = canvas.getBoundingClientRect();
+  svg.innerHTML = '';
+  connections.forEach(c=>{
+    const fn = document.getElementById('node-'+c.from);
+    const tn = document.getElementById('node-'+c.to);
+    if(!fn||!tn) return;
+    const fr = fn.getBoundingClientRect();
+    const tr = tn.getBoundingClientRect();
+    const x1 = fr.right - cr.left + 4;
+    const y1 = fr.top + fr.height/2 - cr.top;
+    const x2 = tr.left - cr.left - 4;
+    const y2 = tr.top + tr.height/2 - cr.top;
+    const cp = Math.abs(x2-x1)*0.55;
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',`M${x1},${y1} C${x1+cp},${y1} ${x2-cp},${y2} ${x2},${y2}`);
+    const fromA = agents.find(a=>a.id===c.from);
+    path.setAttribute('stroke', fromA?.color||'#6b7280');
+    path.setAttribute('class','edge-path');
+    svg.appendChild(path);
+    // Label
+    const mx=(x1+x2)/2, my=(y1+y2)/2-8;
+    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x',mx); txt.setAttribute('y',my);
+    txt.setAttribute('text-anchor','middle'); txt.setAttribute('class','edge-label');
+    txt.textContent = c.label||'';
+    svg.appendChild(txt);
+    // Arrow marker
+    const arr = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    const ang = Math.atan2(y2-y1, x2-x1);
+    const ax=x2,ay=y2,len=7;
+    const p1x=ax-len*Math.cos(ang-0.4), p1y=ay-len*Math.sin(ang-0.4);
+    const p2x=ax-len*Math.cos(ang+0.4), p2y=ay-len*Math.sin(ang+0.4);
+    arr.setAttribute('points',`${ax},${ay} ${p1x},${p1y} ${p2x},${p2y}`);
+    arr.setAttribute('fill', fromA?.color||'#6b7280');
+    arr.setAttribute('opacity','0.6');
+    svg.appendChild(arr);
+  });
+}
+
+window.addEventListener('resize', ()=>setTimeout(drawEdges,100));
+</script>
+
+<script>
+// ── PANEL ──────────────────────────────────────────────────
+function openAgent(a){
+  currentAgent = a.id;
+  document.querySelectorAll('.node').forEach(n=>n.classList.remove('selected'));
+  const nd = document.getElementById('node-'+a.id);
+  if(nd) nd.classList.add('selected');
+  const panel = document.getElementById('sidePanel');
+  panel.classList.add('open');
+  document.getElementById('panelIcon').textContent = a.icon;
+  document.getElementById('panelIcon').style.background = a.color+'22';
+  document.getElementById('panelTitle').textContent = a.name;
+  document.getElementById('panelSub').textContent = a.schedule ? '⏰ '+a.schedule : '';
+  switchTab('chat', document.querySelector('.ptab'));
+  loadChat(a.id);
+  setTimeout(drawEdges,350);
+}
+
+function closePanel(){
+  document.getElementById('sidePanel').classList.remove('open');
+  document.querySelectorAll('.node').forEach(n=>n.classList.remove('selected'));
+  currentAgent = null;
+  setTimeout(drawEdges,350);
+}
+
+function switchTab(tab, btn){
+  document.querySelectorAll('.ptab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab'+tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('active');
+  if(!currentAgent) return;
+  if(tab==='report') loadReport(currentAgent);
+  if(tab==='skill')  loadSkill(currentAgent);
+}
+
+// ── CHAT ───────────────────────────────────────────────────
+async function loadChat(aid){
+  const box = document.getElementById('chatMessages');
+  box.innerHTML = '<div class="msg system">Carregando histórico...</div>';
+  try{
+    const r = await fetch(API+'/api/chat/'+aid+'/history');
+    const d = await r.json();
+    box.innerHTML = '';
+    if(!d.length){
+      const a = agents.find(x=>x.id===aid);
+      box.innerHTML = `<div class="msg system">Olá! Converse com o agente ${a?.name||aid}. Posso responder perguntas sobre meu funcionamento, relatórios e configurações.</div>`;
+    } else {
+      d.forEach(m=> addMsg(m.role, m.content, false));
+    }
+  }catch(e){ box.innerHTML='<div class="msg system">Erro ao carregar histórico</div>'; }
+}
+
+function addMsg(role, text, scroll=true){
+  const box = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'msg '+role;
+  div.textContent = text;
+  box.appendChild(div);
+  if(scroll) box.scrollTop = box.scrollHeight;
+}
+
+async function sendChat(){
+  const inp = document.getElementById('chatInput');
+  const btn = document.getElementById('sendBtn');
+  const text = inp.value.trim();
+  if(!text||!currentAgent) return;
+  inp.value = ''; inp.style.height='38px';
+  addMsg('user', text);
+  btn.disabled = true;
+  const typing = document.createElement('div');
+  typing.className='msg assistant'; typing.id='typing';
+  typing.innerHTML='<span style="opacity:.5">digitando...</span>';
+  document.getElementById('chatMessages').appendChild(typing);
+  document.getElementById('chatMessages').scrollTop=99999;
+  try{
+    const r = await fetch(API+'/api/chat',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({agent_id:currentAgent, message:text})});
+    const d = await r.json();
+    document.getElementById('typing')?.remove();
+    addMsg('assistant', d.reply||'...');
+  }catch(e){
+    document.getElementById('typing')?.remove();
+    addMsg('assistant','❌ Erro de conexão');
+  }
+  btn.disabled = false;
+  inp.focus();
+}
+
+// ── REPORT ─────────────────────────────────────────────────
+async function loadReport(aid){
+  const tab = document.getElementById('tabReport');
+  tab.innerHTML = '<div class="report-empty">Carregando relatório...</div>';
+  try{
+    const r = await fetch(API+'/api/agents/'+aid+'/report');
+    const d = await r.json();
+    if(d.error){ tab.innerHTML=`<div class="report-empty">📭 ${d.error}</div>`; return; }
+    const cards = [];
+    if(d.resumo_executivo) cards.push(reportCard('📋 Resumo Executivo', d.resumo_executivo));
+    if(d.realizacoes_do_dia?.length) cards.push(reportListCard('✅ Realizações', d.realizacoes_do_dia));
+    if(d.prioridades_amanha?.length) cards.push(reportListCard('🎯 Prioridades Amanhã', d.prioridades_amanha));
+    if(d.pontos_atencao?.length) cards.push(reportListCard('⚠️ Atenção', d.pontos_atencao));
+    if(d.novidades_tecnicas?.length) cards.push(reportListCard('🆕 Novidades Técnicas', d.novidades_tecnicas));
+    if(d.features_prioritarias?.length) cards.push(reportListCard('🎯 Features', d.features_prioritarias));
+    if(d.recomendacoes_tecnicas?.length) cards.push(reportListCard('💡 Recomendações', d.recomendacoes_tecnicas));
+    if(d.status_sistemas) cards.push(reportStatusCard(d.status_sistemas));
+    const meta = `<div style="font-size:.7rem;color:var(--text3);margin-bottom:8px">📅 ${d.data||''} ${d.hora||''}</div>`;
+    tab.innerHTML = meta + (cards.length ? cards.join('') : `<pre style="font-size:.75rem;color:var(--text2);white-space:pre-wrap">${JSON.stringify(d,null,2)}</pre>`);
+  }catch(e){ tab.innerHTML='<div class="report-empty">❌ Erro ao carregar</div>'; }
+}
+
+function reportCard(title, val){
+  return `<div class="report-card"><div class="report-title">${title}</div><div class="report-value">${val}</div></div>`; }
+function reportListCard(title, arr){
+  return `<div class="report-card"><div class="report-title">${title}</div><ul class="report-list">${arr.map(i=>`<li>${i}</li>`).join('')}</ul></div>`; }
+function reportStatusCard(st){
+  const items = Object.entries(st).map(([k,v])=>`<div style="display:flex;justify-content:space-between;font-size:.8rem;padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text2)">${k}</span><span style="color:${v==='ok'?'var(--green)':v==='warning'?'var(--amber)':'var(--red)'}">${v}</span></div>`).join('');
+  return `<div class="report-card"><div class="report-title">🖥️ Status Sistemas</div>${items}</div>`; }
+
+// ── SKILL ──────────────────────────────────────────────────
+async function loadSkill(aid){
+  const pre = document.getElementById('skillPre');
+  pre.textContent = 'Carregando...';
+  try{
+    const r = await fetch(API+'/api/agents/'+aid+'/skill');
+    const d = await r.json();
+    pre.textContent = d.content||'Skill não encontrada';
+  }catch(e){ pre.textContent='Erro ao carregar'; }
+}
+
+// ── INIT ───────────────────────────────────────────────────
+document.getElementById('chatInput').addEventListener('input', function(){
+  this.style.height='38px';
+  this.style.height=Math.min(this.scrollHeight,100)+'px';
+});
+
+loadFlow();
+setInterval(loadFlow, 30000);
+</script>
+</body></html>
