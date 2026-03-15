@@ -85,6 +85,18 @@ EXTRA_PROJECTS = [
      "description":"Framework BI governance — snapshots T+3/T+7 para marketplaces multi-plataforma",
      "has_report":False, "last_run":None, "report_date":None, "schedule":"framework",
      "stack":"Metodologia + Docs", "path":"Marketplace-MultiCab-BI-Case-main"},
+    # DevOps & Testing
+    {"id":"_tester_agent", "name":"Agente Tester", "icon":"🧪", "color":"#f43f5e",
+     "x":550, "y":820, "virtual":False, "category":"devops",
+     "description":"Testa APIs, UI/botões, VPS, console errors — Playwright + httpx + paramiko",
+     "has_report":False, "last_run":None, "report_date":None, "schedule":"manual",
+     "stack":"Python + Playwright", "path":"agente-tester"},
+    # SpringBoot Projects
+    {"id":"_springboot", "name":"SpringBoot Labs", "icon":"🍃", "color":"#6db33f",
+     "x":800, "y":820, "virtual":False, "category":"dev",
+     "description":"6 projetos Spring Boot — API REST, Escola, Locadora, RH, Newsletter, Hello World",
+     "has_report":False, "last_run":None, "report_date":None, "schedule":"estudo",
+     "stack":"Java + Spring Boot + Maven", "path":"SpringBoot-main"},
 ]
 
 CONNECTIONS = [
@@ -110,6 +122,8 @@ CONNECTIONS.extend([
     {"from":"_500_agents",       "to":"agente-desenvolvimento", "label":"referência"},
     {"from":"_cfo",              "to":"_cloud_roi",      "label":"ROI"},
     {"from":"_erp_analytics",    "to":"_multicab_bi",    "label":"BI data"},
+    {"from":"_tester_agent",    "to":"agente-desenvolvimento", "label":"bug reports"},
+    {"from":"inspecao-geral-sistemas", "to":"_tester_agent", "label":"trigger tests"},
 ])
 
 ROUTE_AGENT_PATH = Path(r"C:\Users\aglan\OneDrive\Documentos\claude projetos\mapas\route-agent")
@@ -117,7 +131,16 @@ OPENCLAW_SKILLS_DIR = Path(r"C:\Users\aglan\.claude\skills")
 NANOCLAW_DIR = Path(r"C:\Users\aglan\OneDrive\Documentos\claude projetos\agentes de ia claude\nanoclaw\nanoclaw-main")
 
 app = FastAPI(title="Agent Hub")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:7080",
+        "http://127.0.0.1:7080",
+        "https://saas.vendedorgpt.com.br",
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def get_db():
     conn = sqlite3.connect(str(DB_PATH))

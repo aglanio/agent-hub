@@ -360,7 +360,10 @@ async function loadChat(aid){
     box.innerHTML = '';
     if(!d.length){
       const a = agents.find(x=>x.id===aid);
-      box.innerHTML = `<div class="msg system">Olá! Converse com o agente ${a?.name||aid}. Posso responder perguntas sobre meu funcionamento, relatórios e configurações.</div>`;
+      const welcome = document.createElement('div');
+      welcome.className='msg system';
+      welcome.textContent=`Olá! Converse com o agente ${a?.name||aid}. Posso responder perguntas sobre meu funcionamento, relatórios e configurações.`;
+      box.appendChild(welcome);
     } else {
       d.forEach(m=> addMsg(m.role, m.content, false));
     }
@@ -426,12 +429,13 @@ async function loadReport(aid){
   }catch(e){ tab.innerHTML='<div class="report-empty">❌ Erro ao carregar</div>'; }
 }
 
+function esc(s){ const d=document.createElement('div'); d.textContent=String(s||''); return d.innerHTML; }
 function reportCard(title, val){
-  return `<div class="report-card"><div class="report-title">${title}</div><div class="report-value">${val}</div></div>`; }
+  return `<div class="report-card"><div class="report-title">${esc(title)}</div><div class="report-value">${esc(val)}</div></div>`; }
 function reportListCard(title, arr){
-  return `<div class="report-card"><div class="report-title">${title}</div><ul class="report-list">${arr.map(i=>`<li>${i}</li>`).join('')}</ul></div>`; }
+  return `<div class="report-card"><div class="report-title">${esc(title)}</div><ul class="report-list">${arr.map(i=>`<li>${esc(i)}</li>`).join('')}</ul></div>`; }
 function reportStatusCard(st){
-  const items = Object.entries(st).map(([k,v])=>`<div style="display:flex;justify-content:space-between;font-size:.8rem;padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text2)">${k}</span><span style="color:${v==='ok'?'var(--green)':v==='warning'?'var(--amber)':'var(--red)'}">${v}</span></div>`).join('');
+  const items = Object.entries(st).map(([k,v])=>`<div style="display:flex;justify-content:space-between;font-size:.8rem;padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text2)">${esc(k)}</span><span style="color:${v==='ok'?'var(--green)':v==='warning'?'var(--amber)':'var(--red)'}">${esc(v)}</span></div>`).join('');
   return `<div class="report-card"><div class="report-title">🖥️ Status Sistemas</div>${items}</div>`; }
 
 // ── SKILL ──────────────────────────────────────────────────

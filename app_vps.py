@@ -1,5 +1,5 @@
 """Agent Hub — VPS version (Linux paths, embedded agent data)"""
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -66,6 +66,8 @@ CONNECTIONS = [
     {"from": "_500_agents", "to": "agente-desenvolvimento", "label": "referencia"},
     {"from": "_cfo", "to": "_cloud_roi", "label": "ROI"},
     {"from": "_erp_analytics", "to": "_multicab_bi", "label": "BI data"},
+    {"from": "_tester_agent", "to": "agente-desenvolvimento", "label": "bug reports"},
+    {"from": "inspecao-geral-sistemas", "to": "_tester_agent", "label": "trigger tests"},
 ]
 
 EXTRA_PROJECTS = [
@@ -104,12 +106,31 @@ EXTRA_PROJECTS = [
      "description": "Framework BI governance — snapshots T+3/T+7 para marketplaces multi-plataforma",
      "has_report": False, "last_run": None, "report_date": None, "schedule": "framework",
      "stack": "Metodologia + Docs"},
+    {"id": "_tester_agent", "name": "Agente Tester", "icon": "🧪", "color": "#f43f5e",
+     "x": 550, "y": 820, "virtual": False, "category": "devops",
+     "description": "Testa APIs, UI/botões, VPS, console errors — Playwright + httpx + paramiko",
+     "has_report": False, "last_run": None, "report_date": None, "schedule": "manual",
+     "stack": "Python + Playwright"},
+    {"id": "_springboot", "name": "SpringBoot Labs", "icon": "🍃", "color": "#6db33f",
+     "x": 800, "y": 820, "virtual": False, "category": "dev",
+     "description": "6 projetos Spring Boot — API REST, Escola, Locadora, RH, Newsletter, Hello World",
+     "has_report": False, "last_run": None, "report_date": None, "schedule": "estudo",
+     "stack": "Java + Spring Boot + Maven"},
 ]
 
 REPORTS_DIR = BASE_DIR / "reports"
 
 app = FastAPI(title="Agent Hub")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:7080",
+        "http://127.0.0.1:7080",
+        "https://95.111.241.168",
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def get_db():
@@ -277,9 +298,18 @@ def list_skill_packs():
 
 
 # Upload report endpoint (so local machine can push reports to VPS)
+REPORT_TOKEN = os.getenv("REPORT_UPLOAD_TOKEN", "")
+
 @app.post("/api/agents/{aid}/report")
-async def upload_report(aid: str, data: dict):
-    p = REPORTS_DIR / f"{aid}.json"
+async def upload_report(aid: str, data: dict, request: Request):
+    token = request.headers.get("x-report-token", "")
+    if not REPORT_TOKEN or token != REPORT_TOKEN:
+        raise HTTPException(status_code=401, detail="Invalid or missing report token")
+    # Sanitize aid to prevent path traversal
+    safe_aid = "".join(c for c in aid if c.isalnum() or c in "-_")
+    if not safe_aid or safe_aid != aid:
+        raise HTTPException(status_code=400, detail="Invalid agent ID")
+    p = REPORTS_DIR / f"{safe_aid}.json"
     p.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     return {"ok": True}
 
