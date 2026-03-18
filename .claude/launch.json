@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "agent-hub",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["app.py"],
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "start.bat"],
       "port": 7080
     }
   ]
